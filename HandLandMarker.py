@@ -1,9 +1,7 @@
+import time
+import cv2
 import mediapipe as mp
 from mediapipe.tasks.python import vision
-import cv2
-import time
-
-model_path = 'hand_landmarker.task'
 
 BaseOptions = mp.tasks.BaseOptions
 HandLandmarker = vision.HandLandmarker
@@ -21,80 +19,98 @@ HAND_CONNECTIONS = [
 
 SWAP_HANDEDNESS = {"Left": "Right", "Right": "Left"}
 
+
 class HandLandMarker:
+    """Détection de mains sur webcam.
 
-    def __init__(self, model_path):
-        self.model_path = model_path
+    Points d'extension pour les classes filles :
+      - on_frame(frame, result) : traitement à chaque image
+      - render(frame)           : affichage
+      - on_key(key)             : gestion clavier (retourne False pour quitter)
+    """
 
-        self.base_options = BaseOptions(model_asset_path=self.model_path)
-        self.options = HandLandmarkerOptions(
-            base_options=self.base_options,
-            num_hands=2,
-            running_mode=VisionRunningMode.VIDEO
+    def __init__(self, model_path, num_hands=2, camera_index=0):
+        options = HandLandmarkerOptions(
+            base_options=BaseOptions(model_asset_path=model_path),
+            num_hands=num_hands,
+            running_mode=VisionRunningMode.VIDEO,
         )
-        self.detector = HandLandmarker.create_from_options(self.options)
+        self.detector = HandLandmarker.create_from_options(options)
+        self.camera_index = camera_index
+        self._start = None
+        self._last_ts = -1
 
-    def annotate_frame(self, frame, result):
-        h, w = frame.shape[:2]
+    # ---------- Détection ----------
 
-        for idx, hand in enumerate(result.hand_landmarks):
-            keypoints = [(int(lm.x * w), int(lm.y * h)) for lm in hand]
+    def detect(self, frame_bgr):
+        rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
-            label = result.handedness[idx][0].category_name
-            label = SWAP_HANDEDNESS[label]  # correction de l'inversion
+        ts = int((time.time() - self._start) * 1000)
+        ts = max(ts, self._last_ts + 1)  
+        self._last_ts = ts
+        return self.detector.detect_for_video(mp_image, ts)
 
-            # Traits
-            for a, b in HAND_CONNECTIONS:
-                cv2.line(frame, keypoints[a], keypoints[b], (255, 255, 255), 2)
+    # ---------- Utilitaires ----------
 
-            # Points
-            for (x, y) in keypoints:
-                cv2.circle(frame, (x, y), 5, (255, 200, 50), -1)
+    @staticmethod
+    def to_pixels(hand, w, h):
+        """Landmarks normalisés (0-1) -> liste de points (x, y) en pixels."""
+        return [(int(lm.x * w), int(lm.y * h)) for lm in hand]
 
-            # Étiquette près du poignet
-            wx, wy = keypoints[0]
+    @staticmethod
+    def get_label(result, idx):
+        """'Left' / 'Right' corrigé (l'image est en miroir)."""
+        return SWAP_HANDEDNESS[result.handedness[idx][0].category_name]
+
+    @staticmethod
+    def draw_hand(frame, points, label=None):
+        for a, b in HAND_CONNECTIONS:
+            cv2.line(frame, points[a], points[b], (255, 255, 255), 2)
+        for p in points:
+            cv2.circle(frame, p, 5, (255, 200, 50), -1)
+        if label:
+            wx, wy = points[0]
             cv2.putText(frame, label, (wx - 20, wy + 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
 
+    
 
-    def process_webcam(self):
-        cap = cv2.VideoCapture(0)
-        start = time.time()
-        while cap.isOpened():
-            success, frame = cap.read()
-            if not success:
-                print("Ignoring empty camera frame.")
-                continue
+    # ---------- Hooks (à surcharger) ----------
 
-            # Flip the image horizontally for a later selfie-view display, and convert
-            # the BGR image to RGB.
-            frame = cv2.flip(frame, 1)
-            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+    def on_frame(self, frame, result):
+        """Comportement par défaut : dessiner toutes les mains détectées."""
+        h, w = frame.shape[:2]
+        for idx, hand in enumerate(result.hand_landmarks):
+            self.draw_hand(frame, self.to_pixels(hand, w, h),
+                           self.get_label(result, idx))
 
+    def render(self, frame):
+        cv2.imshow('Hand Landmarker', frame)
 
-            timestamp_ms = int((time.time() - start) * 1000)
-            result = self.detector.detect_for_video(mp_image, timestamp_ms)
+    def on_key(self, key):
+        return key != ord('q')
 
-            self.annotate_frame(frame, result)
+    # ---------- Boucle principale ----------
 
-            cv2.imshow('MediaPipe Hand Landmarker', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+    def run(self):
+        cap = cv2.VideoCapture(self.camera_index)
+        self._start = time.time()
+        try:
+            while cap.isOpened():
+                success, frame = cap.read()
+                if not success:
+                    print("Ignoring empty camera frame.")
+                    continue
 
-        cap.release()
-        cv2.destroyAllWindows()
+                frame = cv2.flip(frame, 1)
+                result = self.detect(frame)
 
+                self.on_frame(frame, result)
+                self.render(frame)
 
-
-
-        
-
-
-
-
-
-
-
-
-
+                if not self.on_key(cv2.waitKey(1) & 0xFF):
+                    break
+        finally:
+            cap.release()
+            cv2.destroyAllWindows()
