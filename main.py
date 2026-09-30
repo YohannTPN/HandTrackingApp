@@ -1,4 +1,3 @@
-import HandLandMarker
+from HandPaint import HandPaint
 
-hand_landmarker = HandLandMarker.HandLandMarker('hand_landmarker.task')
-hand_landmarker.process_webcam()
+HandPaint('hand_landmarker.task').run()
