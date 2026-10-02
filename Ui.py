@@ -4,6 +4,7 @@ import numpy as np
 
 from Button import Button
 
+DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 
@@ -14,19 +15,27 @@ class UI:
     Ne connaît rien de MediaPipe : elle reçoit juste des points en pixels.
     """
 
-    def __init__(self, color=BLACK, thickness=6,buttons=None):
+    def __init__(self, color=BLACK, thickness=DEFAULT_THICKNESS, buttons=None):
         self.color = color
         self.thickness = thickness
         self.canvas = None
         self.buttons = buttons if buttons is not None else []
 
-        self.add_button((10, 10), (100, 30), "Rouge", lambda: print("Rouge"))
-        self.add_button((120, 10), (100, 30), "Vert", lambda: print("Vert"))
-        self.add_button((230, 10), (100, 30), "Bleu", lambda: print("Bleu"))
-        self.add_button((340, 10), (100, 30), "Black", lambda: print("Black"))
-        self.add_button((450, 10), (100, 30), "Gomme", lambda: print("Gomme"))
+        self.add_button((10, 10), (100, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
+        self.add_button((120, 10), (100, 30), "Vert", lambda: self.change_color((0, 255, 0)))
+        self.add_button((230, 10), (100, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
+        self.add_button((340, 10), (100, 30), "Black", lambda: self.change_color((0, 0, 0)))
+        self.add_button((450, 10), (100, 30), "Gomme", lambda: self.use_eraser())
 
     # ---------- Canvas ----------
+
+    def change_color(self, color):
+        self.thickness = DEFAULT_THICKNESS
+        self.color = color
+
+    def use_eraser(self):
+        self.color = WHITE
+        self.thickness = 20
 
     def ensure_canvas(self, w, h):
         if self.canvas is None:
