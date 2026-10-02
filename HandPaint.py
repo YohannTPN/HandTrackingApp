@@ -21,6 +21,9 @@ class HandPaint(HandLandMarker):
         self.smooth_point = None
         self.cursor = None
 
+        self.was_pinching = False
+        self.is_clicking_button = False
+
     # ---------- Geste ----------
 
     @staticmethod
@@ -62,6 +65,7 @@ class HandPaint(HandLandMarker):
         self.pinching = False
         self.prev_point = None
         self.smooth_point = None
+        self.is_clicking_button = False
 
     # ---------- Hooks ----------
 
@@ -77,10 +81,26 @@ class HandPaint(HandLandMarker):
         points = self.to_pixels(result.hand_landmarks[0], w, h)
         self.draw_hand(frame, points, self.get_label(result, 0))
 
+        self.was_pinching = self.pinching
+
         self.update_pinch_state(self.pinch_ratio(points))
+
+        start_pinching = self.pinching and not self.was_pinching
+
+
         self.cursor = self.brush_position(points)
 
-        if self.pinching:
+        hovered_button = self.ui.button_at(self.cursor)
+
+        if start_pinching:
+            if hovered_button is not None:
+                self.is_clicking_button = True
+                hovered_button.action()
+        
+        if not self.pinching :
+            self.is_clicking_button = False
+
+        if self.pinching and not self.is_clicking_button:
             if self.prev_point is not None:
                 self.ui.draw_line(self.prev_point, self.cursor)
             self.prev_point = self.cursor
