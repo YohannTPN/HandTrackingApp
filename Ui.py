@@ -26,12 +26,13 @@ class UI:
         self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
         self.is_eraser_active = False
 
-        self.add_button((10, 10), (100, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
-        self.add_button((120, 10), (100, 30), "Vert", lambda: self.change_color((0, 255, 0)))
-        self.add_button((230, 10), (100, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
-        self.add_button((340, 10), (100, 30), "Black", lambda: self.change_color((0, 0, 0)))
-        self.add_button((450, 10), (100, 30), "Gomme", lambda: self.use_eraser())
-        self.add_button((560, 10), (100, 30), "Color Wheel", lambda: self.open_color_wheel())
+        self.add_button((10, 10), (110, 30), "Color Wheel", lambda: self.open_color_wheel())
+        self.add_button((140, 10), (80, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
+        self.add_button((240, 10), (80, 30), "Vert", lambda: self.change_color((0, 255, 0)))
+        self.add_button((340, 10), (80, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
+        self.add_button((440, 10), (80, 30), "Black", lambda: self.change_color((0, 0, 0)))
+        self.add_button((540, 10), (80, 30), "Gomme", lambda: self.use_eraser())
+        
 
     # ---------- Canvas ----------
     
@@ -133,7 +134,7 @@ class UI:
             
 
         status = "Dessin" if drawing else "Pause (pince pouce + index pour dessiner)"
-        cv2.putText(view, status, (10, 25),
+        cv2.putText(view, status, (260, view.shape[0] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (90, 90, 90), 1)
         cv2.putText(view, "s: sauver | q: quitter", (10, view.shape[0] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (90, 90, 90), 1)
