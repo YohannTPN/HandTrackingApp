@@ -24,6 +24,7 @@ class HandPaint(HandLandMarker):
         self.was_pinching = False
         self.is_clicking_button = False
 
+
     # ---------- Geste ----------
 
     @staticmethod
@@ -90,12 +91,10 @@ class HandPaint(HandLandMarker):
 
         self.cursor = self.brush_position(points)
 
-        hovered_button = self.ui.button_at(self.cursor)
+
 
         if start_pinching:
-            if hovered_button is not None:
-                self.is_clicking_button = True
-                hovered_button.action()
+            self.is_clicking_button = self.ui.handle_click(self.cursor)
         
         if not self.pinching :
             self.is_clicking_button = False

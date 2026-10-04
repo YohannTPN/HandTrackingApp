@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 
 from Button import Button
+from ColorWheel import ColorWheel
 
 DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
@@ -15,23 +16,31 @@ class UI:
     Ne connaît rien de MediaPipe : elle reçoit juste des points en pixels.
     """
 
-    def __init__(self, color=BLACK, thickness=DEFAULT_THICKNESS, buttons=None):
+    def __init__(self, color=BLACK, thickness=DEFAULT_THICKNESS, buttons=None, color_wheel=None):
         self.color = color
         self.thickness = thickness
         self.canvas = None
         self.buttons = buttons if buttons is not None else []
+        self.is_color_wheel_open = False
+        self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
 
         self.add_button((10, 10), (100, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
         self.add_button((120, 10), (100, 30), "Vert", lambda: self.change_color((0, 255, 0)))
         self.add_button((230, 10), (100, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
         self.add_button((340, 10), (100, 30), "Black", lambda: self.change_color((0, 0, 0)))
         self.add_button((450, 10), (100, 30), "Gomme", lambda: self.use_eraser())
+        self.add_button((560, 10), (100, 30), "Color Wheel", lambda: self.open_color_wheel())
 
     # ---------- Canvas ----------
+    
 
     def change_color(self, color):
         self.thickness = DEFAULT_THICKNESS
         self.color = color
+
+    def open_color_wheel(self):
+        self.is_color_wheel_open = True
+
 
     def use_eraser(self):
         self.color = WHITE
@@ -53,6 +62,24 @@ class UI:
                 return button
         return None
 
+    def handle_click(self, point):
+        if self.is_color_wheel_open:
+            if self.color_wheel.select_color(point) is not None:
+                self.change_color(self.color_wheel.color)
+                return True
+            else :
+                self.is_color_wheel_open = False
+                return True
+        else:
+            button = self.button_at(point)
+            if button is not None:
+                button.action()
+                return True
+        return False
+
+
+        
+
     def save(self):
         filename = f"paint_{int(time.time())}.png"
         cv2.imwrite(filename, self.canvas)
@@ -68,7 +95,6 @@ class UI:
         view = self.canvas.copy()
 
         
-
         for button in self.buttons:
             x, y = button.pos
             w, h = button.size
@@ -77,10 +103,17 @@ class UI:
             cv2.putText(view, button.label, (x + 10, y + 22),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (50, 50, 50), 1)
 
+        if self.is_color_wheel_open:
+            x, y = self.color_wheel.pos
+            w, h = self.color_wheel.size
+            wheel_image = self.color_wheel.wheel_image
+            view[y:y + h, x:x + w] = wheel_image
+
         if cursor is not None:
             radius = max(self.thickness, 6)
             # Plein = en train de dessiner, contour = curseur seul
-            cv2.circle(view, cursor, radius, (0, 0, 255), -1 if drawing else 2)
+            cv2.circle(view, cursor, radius+1, (0, 0, 255), -1 if drawing else 2)
+            cv2.circle(view, cursor, radius, self.color, -1 if drawing else 2)
             button = self.button_at(cursor)
             if button is not None:
                 x, y = button.pos
