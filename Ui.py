@@ -8,6 +8,7 @@ from ColorWheel import ColorWheel
 DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
+GREY = (200, 200, 200)
 
 
 class UI:
@@ -23,6 +24,7 @@ class UI:
         self.buttons = buttons if buttons is not None else []
         self.is_color_wheel_open = False
         self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
+        self.is_eraser_active = False
 
         self.add_button((10, 10), (100, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
         self.add_button((120, 10), (100, 30), "Vert", lambda: self.change_color((0, 255, 0)))
@@ -36,6 +38,7 @@ class UI:
 
     def change_color(self, color):
         self.thickness = DEFAULT_THICKNESS
+        self.is_eraser_active = False
         self.color = color
 
     def open_color_wheel(self):
@@ -43,6 +46,7 @@ class UI:
 
 
     def use_eraser(self):
+        self.is_eraser_active = True
         self.color = WHITE
         self.thickness = 20
 
@@ -110,10 +114,15 @@ class UI:
             view[y:y + h, x:x + w] = wheel_image
 
         if cursor is not None:
-            radius = max(self.thickness, 6)
-            # Plein = en train de dessiner, contour = curseur seul
-            cv2.circle(view, cursor, radius+1, (0, 0, 255), -1 if drawing else 2)
-            cv2.circle(view, cursor, radius, self.color, -1 if drawing else 2)
+            if self.is_eraser_active:
+                radius = max(self.thickness, 10)
+                cv2.circle(view, cursor, radius//2, GREY, 2)
+            else:
+                radius = max(self.thickness, 6)
+                # Plein = en train de dessiner, contour = curseur seul
+                cv2.circle(view, cursor, radius, self.color, -1 if drawing else 2)
+
+
             button = self.button_at(cursor)
             if button is not None:
                 x, y = button.pos
