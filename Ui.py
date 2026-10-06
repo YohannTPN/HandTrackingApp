@@ -24,14 +24,18 @@ class UI:
         self.buttons = buttons if buttons is not None else []
         self.is_color_wheel_open = False
         self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
-        self.is_eraser_active = False
+
+        self.active_tool = "brush"  # "brush" ou "eraser" ou "fill"
+
 
         self.add_button((10, 10), (110, 30), "Color Wheel", lambda: self.open_color_wheel())
         self.add_button((140, 10), (80, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
         self.add_button((240, 10), (80, 30), "Vert", lambda: self.change_color((0, 255, 0)))
         self.add_button((340, 10), (80, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
         self.add_button((440, 10), (80, 30), "Black", lambda: self.change_color((0, 0, 0)))
-        self.add_button((540, 10), (80, 30), "Gomme", lambda: self.use_eraser())
+        self.add_button((10, 40), (80, 30), "Brush", lambda: self.use_brush())
+        self.add_button((140, 40), (80, 30), "Fill", lambda: self.use_fill())
+        self.add_button((240, 40), (80, 30), "Gomme", lambda: self.use_eraser())
         
 
     # ---------- Canvas ----------
@@ -39,24 +43,43 @@ class UI:
 
     def change_color(self, color):
         self.thickness = DEFAULT_THICKNESS
-        self.is_eraser_active = False
+        self.active_tool = "brush"
         self.color = color
 
     def open_color_wheel(self):
         self.is_color_wheel_open = True
 
+    def use_brush(self):
+        self.active_tool = "brush"
+        self.thickness = DEFAULT_THICKNESS
+        self.color = self.color if self.color != WHITE else BLACK
 
     def use_eraser(self):
-        self.is_eraser_active = True
+        self.active_tool = "eraser"
         self.color = WHITE
         self.thickness = 20
+
+    def use_fill(self):
+        self.active_tool = "fill"
+        self.color = self.color if self.color != WHITE else BLACK
+        self.thickness = DEFAULT_THICKNESS
+
+    def fill_canvas(self, canvas, point):
+        """Remplit le canvas à partir d'un point donné."""
+        h, w = canvas.shape[:2]
+        mask = np.zeros((h + 2, w + 2), np.uint8)
+        cv2.floodFill(canvas, mask, point, self.color, flags=cv2.FLOODFILL_FIXED_RANGE,loDiff=(30, 30, 30), upDiff=(30, 30, 30))
+
+
+
+
 
     def ensure_canvas(self, w, h):
         if self.canvas is None:
             self.canvas = np.full((h, w, 3), 255, dtype=np.uint8)
 
     def draw_line(self, p1, p2):
-        cv2.line(self.canvas, p1, p2, self.color, self.thickness, cv2.LINE_AA)
+        cv2.line(self.canvas, p1, p2, self.color, self.thickness, cv2.LINE_8)
 
     def add_button(self, pos, size, label, action):
         self.buttons.append(Button(pos, size, label, action))
@@ -68,6 +91,7 @@ class UI:
         return None
 
     def handle_click(self, point):
+        button = self.button_at(point)
         if self.is_color_wheel_open:
             if self.color_wheel.select_color(point) is not None:
                 self.change_color(self.color_wheel.color)
@@ -75,11 +99,16 @@ class UI:
             else :
                 self.is_color_wheel_open = False
                 return True
-        else:
-            button = self.button_at(point)
-            if button is not None:
-                button.action()
-                return True
+
+        if button is not None:
+            button.action()
+            return True
+                
+        if self.active_tool == "fill":
+            self.fill_canvas(self.canvas, point)
+            return True
+        
+
         return False
 
 
@@ -115,7 +144,7 @@ class UI:
             view[y:y + h, x:x + w] = wheel_image
 
         if cursor is not None:
-            if self.is_eraser_active:
+            if self.active_tool == "eraser":
                 radius = max(self.thickness, 10)
                 cv2.circle(view, cursor, radius//2, GREY, 2)
             else:
