@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+from collections import deque
 
 from Button import Button
 from ColorWheel import ColorWheel
@@ -27,6 +28,8 @@ class UI:
 
         self.active_tool = "brush"  # "brush" ou "eraser" ou "fill"
 
+        self.actions_history = deque(maxlen=10)  # Historique des actions pour l'annulation
+
 
         self.add_button((10, 10), (110, 30), "Color Wheel", lambda: self.open_color_wheel())
         self.add_button((140, 10), (80, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
@@ -36,6 +39,7 @@ class UI:
         self.add_button((10, 40), (80, 30), "Brush", lambda: self.use_brush())
         self.add_button((140, 40), (80, 30), "Fill", lambda: self.use_fill())
         self.add_button((240, 40), (80, 30), "Gomme", lambda: self.use_eraser())
+        self.add_button((340, 40), (80, 30), "Undo", lambda: self.pop_last_action())
         
 
     # ---------- Canvas ----------
@@ -105,11 +109,22 @@ class UI:
             return True
                 
         if self.active_tool == "fill":
+            self.register_state() 
             self.fill_canvas(self.canvas, point)
             return True
         
 
         return False
+
+    def register_state(self):
+        """Enregistre l'état actuel du canvas pour permettre l'annulation."""
+        self.actions_history.append(self.canvas.copy())
+
+    def pop_last_action(self):
+        """Annule la dernière action."""
+        if self.actions_history:
+            last_action = self.actions_history.pop()
+            self.canvas[:] = last_action[:]
 
 
         

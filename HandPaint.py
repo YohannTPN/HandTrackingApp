@@ -23,6 +23,7 @@ class HandPaint(HandLandMarker):
 
         self.was_pinching = False
         self.is_clicking_button = False
+        self.can_register_action = True  
 
 
     # ---------- Geste ----------
@@ -98,8 +99,12 @@ class HandPaint(HandLandMarker):
         
         if not self.pinching :
             self.is_clicking_button = False
+            self.can_register_action = True  
 
         if self.pinching and not self.is_clicking_button:
+            if self.can_register_action:
+                self.ui.register_state()  
+                self.can_register_action = False  # Empêche d'enregistrer plusieurs fois pour le même trait
             if self.prev_point is not None:
                 self.ui.draw_line(self.prev_point, self.cursor)
             self.prev_point = self.cursor
