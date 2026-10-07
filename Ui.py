@@ -5,6 +5,7 @@ from collections import deque
 
 from Button import Button
 from ColorWheel import ColorWheel
+from Brush import Brush
 
 DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
@@ -18,9 +19,11 @@ class UI:
     Ne connaît rien de MediaPipe : elle reçoit juste des points en pixels.
     """
 
-    def __init__(self, color=BLACK, thickness=DEFAULT_THICKNESS, buttons=None, color_wheel=None):
-        self.color = color
-        self.thickness = thickness
+    def __init__(self, brush=None, buttons=None, color_wheel=None):
+        
+        self.brush = brush if brush is not None else Brush()
+        self.eraser = Brush(color=WHITE, thickness=20)
+        
         self.canvas = None
         self.buttons = buttons if buttons is not None else []
         self.is_color_wheel_open = False
@@ -48,33 +51,33 @@ class UI:
     
 
     def change_color(self, color):
-        self.thickness = DEFAULT_THICKNESS
+        self.brush.thickness = DEFAULT_THICKNESS
         self.active_tool = "brush"
-        self.color = color
+        self.brush.color = color
 
     def open_color_wheel(self):
         self.is_color_wheel_open = True
 
     def use_brush(self):
         self.active_tool = "brush"
-        self.thickness = DEFAULT_THICKNESS
-        self.color = self.color if self.color != WHITE else BLACK
+        self.brush.thickness = DEFAULT_THICKNESS
+        self.brush.color = self.brush.color if self.brush.color != WHITE else BLACK
 
     def use_eraser(self):
         self.active_tool = "eraser"
-        self.color = WHITE
-        self.thickness = 20
+        self.brush.color = self.eraser.color
+        self.brush.thickness = self.eraser.thickness
 
     def use_fill(self):
         self.active_tool = "fill"
-        self.color = self.color if self.color != WHITE else BLACK
-        self.thickness = DEFAULT_THICKNESS
+        self.brush.color = self.brush.color if self.brush.color != WHITE else BLACK
+        self.brush.thickness = DEFAULT_THICKNESS
 
     def fill_canvas(self, canvas, point):
         """Remplit le canvas à partir d'un point donné."""
         h, w = canvas.shape[:2]
         mask = np.zeros((h + 2, w + 2), np.uint8)
-        cv2.floodFill(canvas, mask, point, self.color, flags=cv2.FLOODFILL_FIXED_RANGE,loDiff=(30, 30, 30), upDiff=(30, 30, 30))
+        cv2.floodFill(canvas, mask, point, self.brush.color, flags=cv2.FLOODFILL_FIXED_RANGE,loDiff=(30, 30, 30), upDiff=(30, 30, 30))
 
 
 
@@ -85,7 +88,7 @@ class UI:
             self.canvas = np.full((h, w, 3), 255, dtype=np.uint8)
 
     def draw_line(self, p1, p2):
-        cv2.line(self.canvas, p1, p2, self.color, self.thickness, cv2.LINE_8)
+        cv2.line(self.canvas, p1, p2, self.brush.color, self.brush.thickness, cv2.LINE_8)
 
     def add_button(self, pos, size, label, action):
         self.buttons.append(Button(pos, size, label, action))
@@ -172,12 +175,12 @@ class UI:
 
         if cursor is not None:
             if self.active_tool == "eraser":
-                radius = max(self.thickness, 10)
+                radius = max(self.brush.thickness, 10)
                 cv2.circle(view, cursor, radius//2, GREY, 2)
             else:
-                radius = max(self.thickness, 6)
+                radius = max(self.brush.thickness, 6)
                 # Plein = en train de dessiner, contour = curseur seul
-                cv2.circle(view, cursor, radius, self.color, -1 if drawing else 2)
+                cv2.circle(view, cursor, radius, self.brush.color, -1 if drawing else 2)
 
 
             button = self.button_at(cursor)
