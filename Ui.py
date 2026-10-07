@@ -29,6 +29,7 @@ class UI:
         self.active_tool = "brush"  # "brush" ou "eraser" ou "fill"
 
         self.actions_history = deque(maxlen=10)  # Historique des actions pour l'annulation
+        self.restore_history = deque(maxlen=10)  # Historique des actions pour la restauration après annulation
 
 
         self.add_button((10, 10), (110, 30), "Color Wheel", lambda: self.open_color_wheel())
@@ -40,6 +41,7 @@ class UI:
         self.add_button((140, 40), (80, 30), "Fill", lambda: self.use_fill())
         self.add_button((240, 40), (80, 30), "Gomme", lambda: self.use_eraser())
         self.add_button((340, 40), (80, 30), "Undo", lambda: self.pop_last_action())
+        self.add_button((440, 40), (80, 30), "Restore", lambda: self.restore_state())
         
 
     # ---------- Canvas ----------
@@ -119,12 +121,22 @@ class UI:
     def register_state(self):
         """Enregistre l'état actuel du canvas pour permettre l'annulation."""
         self.actions_history.append(self.canvas.copy())
+        self.restore_history.clear()  
+
+    def restore_state(self):
+        """Restaure l'état précédent du canvas après une annulation."""
+        if self.restore_history:
+            last_state = self.restore_history.pop()
+            self.actions_history.append(self.canvas.copy())
+            self.canvas[:] = last_state[:]
 
     def pop_last_action(self):
         """Annule la dernière action."""
         if self.actions_history:
+            self.restore_history.append(self.canvas.copy())  
             last_action = self.actions_history.pop()
             self.canvas[:] = last_action[:]
+            
 
 
         
