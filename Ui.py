@@ -4,6 +4,7 @@ import numpy as np
 from collections import deque
 
 from Button import Button
+from Slider import Slider
 from ColorWheel import ColorWheel
 from Brush import Brush
 
@@ -19,13 +20,14 @@ class UI:
     Ne connaît rien de MediaPipe : elle reçoit juste des points en pixels.
     """
 
-    def __init__(self, brush=None, buttons=None, color_wheel=None):
+    def __init__(self, brush=None, buttons=None,sliders=None, color_wheel=None):
         
         self.brush = brush if brush is not None else Brush()
         self.eraser = Brush(color=WHITE, thickness=20)
         
         self.canvas = None
         self.buttons = buttons if buttons is not None else []
+        self.sliders = sliders if sliders is not None else []
         self.is_color_wheel_open = False
         self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
 
@@ -45,6 +47,8 @@ class UI:
         self.add_button((240, 40), (80, 30), "Gomme", lambda: self.use_eraser())
         self.add_button((340, 40), (80, 30), "Undo", lambda: self.pop_last_action())
         self.add_button((440, 40), (80, 30), "Restore", lambda: self.restore_state())
+
+        self.add_slider((10, 80), (200, 20), 1, 50, self.get_brush_thickness, self.set_brush_thickness, step=1)
         
 
     # ---------- Canvas ----------
@@ -97,6 +101,9 @@ class UI:
     def add_button(self, pos, size, label, action):
         self.buttons.append(Button(pos, size, label, action))
 
+    def add_slider(self, pos, size, min_val, max_val,get_brush_value, set_brush_value,step=1):
+        self.sliders.append(Slider(pos, size, min_val, max_val,get_brush_value, set_brush_value,step))
+
     def button_at(self, point):
         for button in self.buttons:
             if button.contains(point):
@@ -143,6 +150,15 @@ class UI:
             self.restore_history.append(self.canvas.copy())  
             last_action = self.actions_history.pop()
             self.canvas[:] = last_action[:]
+
+    # ---------- Brush Thickness ----------
+
+    def get_brush_thickness(self):
+        return self.brush.thickness
+
+    def set_brush_thickness(self, thickness):
+        self.brush.thickness = thickness
+        self.eraser.thickness = thickness
             
 
 
@@ -170,6 +186,15 @@ class UI:
             cv2.rectangle(view, (x, y), (x + w, y + h), (100, 100, 100), 2)
             cv2.putText(view, button.label, (x + 10, y + 22),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (50, 50, 50), 1)
+
+        for slider in self.sliders:
+            x, y = slider.pos
+            w, h = slider.size
+            cv2.rectangle(view, (x, y), (x + w, y + h), (200, 200, 200), -1)
+            cv2.rectangle(view, (x, y), (x + w, y + h), (100, 100, 100), 2)
+            # Dessiner le curseur du slider
+            cursor_x, cursor_y = slider.selected_value()
+            cv2.circle(view, (cursor_x, cursor_y), 8, (50, 50, 50), -1)
 
         if self.is_color_wheel_open:
             x, y = self.color_wheel.pos
