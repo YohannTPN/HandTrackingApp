@@ -32,6 +32,7 @@ class UI:
         self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
 
         self.active_tool = "brush"  # "brush" ou "eraser" ou "fill"
+        self.active_slider = None
 
         self.actions_history = deque(maxlen=10)  # Historique des actions pour l'annulation
         self.restore_history = deque(maxlen=10)  # Historique des actions pour la restauration après annulation
@@ -110,8 +111,24 @@ class UI:
                 return button
         return None
 
+    def slider_at(self,point):
+        for slider in self.sliders:
+            if slider.contains(point):
+                return slider
+        return None
+
+    def on_drag(self, point):
+        if self.active_slider is not None:
+            self.active_slider.set_value_from_point(point)
+
+    def on_release(self):
+        if self.active_slider is not None:
+            self.active_slider = None
+
     def handle_click(self, point):
         button = self.button_at(point)
+        slider = self.slider_at(point)
+
         if self.is_color_wheel_open:
             if self.color_wheel.select_color(point) is not None:
                 self.change_color(self.color_wheel.color)
@@ -122,6 +139,11 @@ class UI:
 
         if button is not None:
             button.action()
+            return True
+
+        if slider is not None:
+            self.active_slider = slider
+            slider.set_value_from_point(point)
             return True
                 
         if self.active_tool == "fill":
@@ -154,11 +176,10 @@ class UI:
     # ---------- Brush Thickness ----------
 
     def get_brush_thickness(self):
-        return self.brush.thickness
+        return self.current_brush().thickness
 
     def set_brush_thickness(self, thickness):
-        self.brush.thickness = thickness
-        self.eraser.thickness = thickness
+        self.current_brush().thickness = thickness
             
 
 
@@ -204,10 +225,10 @@ class UI:
 
         if cursor is not None:
             if self.active_tool == "eraser":
-                radius = max(self.current_brush().thickness, 10)
-                cv2.circle(view, cursor, radius//2, GREY, 2)
+                radius = self.current_brush().thickness // 2
+                cv2.circle(view, cursor, radius, GREY, 2)
             else:
-                radius = max(self.current_brush().thickness, 6)
+                radius = max(self.current_brush().thickness, 3) // 2
                 # Plein = en train de dessiner, contour = curseur seul
                 cv2.circle(view, cursor, radius, self.current_brush().color, -1 if drawing else 2)
 

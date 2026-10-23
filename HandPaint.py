@@ -68,6 +68,8 @@ class HandPaint(HandLandMarker):
         self.prev_point = None
         self.smooth_point = None
         self.is_clicking_button = False
+        self.can_register_action = True
+        self.ui.on_release()
 
     # ---------- Hooks ----------
 
@@ -100,6 +102,7 @@ class HandPaint(HandLandMarker):
         if not self.pinching :
             self.is_clicking_button = False
             self.can_register_action = True  
+            self.ui.on_release()
 
         if self.pinching and not self.is_clicking_button:
             if self.can_register_action:
@@ -108,6 +111,10 @@ class HandPaint(HandLandMarker):
             if self.prev_point is not None:
                 self.ui.draw_line(self.prev_point, self.cursor)
             self.prev_point = self.cursor
+
+        elif self.pinching and self.is_clicking_button:
+            self.ui.on_drag(self.cursor)
+
         else:
             self.prev_point = None
 
