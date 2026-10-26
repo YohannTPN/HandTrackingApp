@@ -7,11 +7,18 @@ from Button import Button
 from Slider import Slider
 from ColorWheel import ColorWheel
 from Brush import Brush
+from Panel import Panel
 
 DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GREY = (200, 200, 200)
+
+PANEL_MARGIN = 20
+PANEL_GAP = 20
+WHEEL_SIZE = 200
+SLIDER_WIDTH = 160    # plus étroit que la roue : place pour afficher la valeur à droite
+SLIDER_HEIGHT = 30
 
 
 class UI:
@@ -20,16 +27,17 @@ class UI:
     Ne connaît rien de MediaPipe : elle reçoit juste des points en pixels.
     """
 
-    def __init__(self, brush=None, buttons=None,sliders=None, color_wheel=None):
+    def __init__(self, brush=None, buttons=None):
         
         self.brush = brush if brush is not None else Brush()
         self.eraser = Brush(color=WHITE, thickness=20)
         
         self.canvas = None
         self.buttons = buttons if buttons is not None else []
-        self.sliders = sliders if sliders is not None else []
-        self.is_color_wheel_open = False
-        self.color_wheel = color_wheel if color_wheel is not None else ColorWheel((10, 50), (200, 200))
+
+        self.is_panel_open = False
+        self.panel = None
+        self.color_wheel = None
 
         self.active_tool = "brush"  # "brush" ou "eraser" ou "fill"
         self.active_slider = None
@@ -38,7 +46,7 @@ class UI:
         self.restore_history = deque(maxlen=10)  # Historique des actions pour la restauration après annulation
 
 
-        self.add_button((10, 10), (110, 30), "Color Wheel", lambda: self.open_color_wheel())
+        self.add_button((10, 10), (110, 30), "Panel", lambda: self.open_panel())
         self.add_button((140, 10), (80, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
         self.add_button((240, 10), (80, 30), "Vert", lambda: self.change_color((0, 255, 0)))
         self.add_button((340, 10), (80, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
@@ -49,7 +57,6 @@ class UI:
         self.add_button((340, 40), (80, 30), "Undo", lambda: self.pop_last_action())
         self.add_button((440, 40), (80, 30), "Restore", lambda: self.restore_state())
 
-        self.add_slider((10, 80), (200, 20), 1, 50, self.get_brush_thickness, self.set_brush_thickness, step=1)
         
 
     # ---------- Canvas ----------
@@ -59,8 +66,8 @@ class UI:
         self.active_tool = "brush"
         self.brush.color = color
 
-    def open_color_wheel(self):
-        self.is_color_wheel_open = True
+    def open_panel(self):
+        self.is_panel_open = True
 
     def use_brush(self):
         self.active_tool = "brush"
@@ -76,7 +83,7 @@ class UI:
         elif self.active_tool == "eraser":
             return self.eraser
         elif self.active_tool == "fill":
-            return self.brush  # Utilise la couleur actuelle du pinceau pour remplir
+            return self.brush  
 
     def use_fill(self):
         self.active_tool = "fill"
@@ -95,6 +102,7 @@ class UI:
     def ensure_canvas(self, w, h):
         if self.canvas is None:
             self.canvas = np.full((h, w, 3), 255, dtype=np.uint8)
+            self.build_panel(w, h)
 
     def draw_line(self, p1, p2):
         cv2.line(self.canvas, p1, p2, self.current_brush().color, self.current_brush().thickness, cv2.LINE_8)
@@ -102,8 +110,6 @@ class UI:
     def add_button(self, pos, size, label, action):
         self.buttons.append(Button(pos, size, label, action))
 
-    def add_slider(self, pos, size, min_val, max_val,get_brush_value, set_brush_value,step=1):
-        self.sliders.append(Slider(pos, size, min_val, max_val,get_brush_value, set_brush_value,step))
 
     def button_at(self, point):
         for button in self.buttons:
@@ -111,11 +117,6 @@ class UI:
                 return button
         return None
 
-    def slider_at(self,point):
-        for slider in self.sliders:
-            if slider.contains(point):
-                return slider
-        return None
 
     def on_drag(self, point):
         if self.active_slider is not None:
@@ -126,31 +127,31 @@ class UI:
             self.active_slider = None
 
     def handle_click(self, point):
+        if self.is_panel_open:
+            color = self.color_wheel.select_color(point)
+            if color is not None:
+                self.change_color(color)
+                return True
+
+            slider = self.panel.slider_at(point)
+            if slider is not None:
+                self.active_slider = slider
+                slider.set_value_from_point(point)
+                return True
+
+            if not self.panel.contains(point):
+                self.is_panel_open = False
+            return True
+
         button = self.button_at(point)
-        slider = self.slider_at(point)
-
-        if self.is_color_wheel_open:
-            if self.color_wheel.select_color(point) is not None:
-                self.change_color(self.color_wheel.color)
-                return True
-            else :
-                self.is_color_wheel_open = False
-                return True
-
         if button is not None:
             button.action()
             return True
 
-        if slider is not None:
-            self.active_slider = slider
-            slider.set_value_from_point(point)
-            return True
-                
         if self.active_tool == "fill":
-            self.register_state() 
+            self.register_state()
             self.fill_canvas(self.canvas, point)
             return True
-        
 
         return False
 
@@ -192,6 +193,24 @@ class UI:
 
     # ---------- Affichage ----------
 
+    def build_panel(self, frame_w, frame_h):
+        """Calcule la disposition et crée le panneau centré dans l'image."""
+        panel_w = PANEL_MARGIN * 2 + WHEEL_SIZE
+        panel_h = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + SLIDER_HEIGHT
+
+        # Origine du panneau : centré dans l'image
+        px = (frame_w - panel_w) // 2
+        py = (frame_h - panel_h) // 2
+
+        # Positions absolues des éléments
+        wheel_pos = (px + PANEL_MARGIN, py + PANEL_MARGIN)
+        slider_pos = (px + PANEL_MARGIN, wheel_pos[1] + WHEEL_SIZE + PANEL_GAP)
+
+        self.color_wheel = ColorWheel(wheel_pos, (WHEEL_SIZE, WHEEL_SIZE))
+        thickness_slider = Slider(slider_pos, (SLIDER_WIDTH, SLIDER_HEIGHT), 1, 50,
+                                self.get_brush_thickness, self.set_brush_thickness, step=1)
+        self.panel = Panel((px, py), (panel_w, panel_h), [thickness_slider], self.color_wheel)
+
     def show(self, camera_frame, cursor=None, drawing=False):
         cv2.imshow('Camera', camera_frame)
         cv2.imshow('Paint', self._compose(cursor, drawing))
@@ -208,20 +227,9 @@ class UI:
             cv2.putText(view, button.label, (x + 10, y + 22),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, (50, 50, 50), 1)
 
-        for slider in self.sliders:
-            x, y = slider.pos
-            w, h = slider.size
-            cv2.rectangle(view, (x, y), (x + w, y + h), (200, 200, 200), -1)
-            cv2.rectangle(view, (x, y), (x + w, y + h), (100, 100, 100), 2)
-            # Dessiner le curseur du slider
-            cursor_x, cursor_y = slider.selected_value()
-            cv2.circle(view, (cursor_x, cursor_y), 8, (50, 50, 50), -1)
 
-        if self.is_color_wheel_open:
-            x, y = self.color_wheel.pos
-            w, h = self.color_wheel.size
-            wheel_image = self.color_wheel.wheel_image
-            view[y:y + h, x:x + w] = wheel_image
+        if self.is_panel_open:
+            self.panel.draw(view)
 
         if cursor is not None:
             if self.active_tool == "eraser":
@@ -234,7 +242,7 @@ class UI:
 
 
             button = self.button_at(cursor)
-            if button is not None:
+            if button is not None and not self.is_panel_open:
                 x, y = button.pos
                 w, h = button.size
                 cv2.rectangle(view, (x, y), (x + w, y + h), (0, 0, 255), 2)
