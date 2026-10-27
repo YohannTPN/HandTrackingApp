@@ -17,6 +17,9 @@ class Panel :
         wx, wy = self.color_wheel.pos
         ww, wh = self.color_wheel.size
         view[wy:wy + wh, wx:wx + ww] = self.color_wheel.wheel_image
+        color_wheel = view[wy:wy + wh, wx:wx + ww]
+        color_wheel_mask = self.color_wheel.mask
+        color_wheel[color_wheel_mask == 0] = (230, 230, 230)
 
         for slider in self.sliders:
             sx, sy = slider.pos
