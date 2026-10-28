@@ -1,11 +1,11 @@
 class Slider :
-    def __init__(self, pos, size, min_val, max_val,get_brush_value, set_brush_value,step=1):
+    def __init__(self, pos, size, min_val, max_val,getter, setter,step=1):
         self.pos = pos
         self.size = size
         self.min_val = min_val
         self.max_val = max_val
-        self.get_brush_value = get_brush_value
-        self.set_brush_value = set_brush_value
+        self.get_brush_value = getter
+        self.set_brush_value = setter
         self.step = step
 
 
