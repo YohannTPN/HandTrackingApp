@@ -11,14 +11,23 @@ from Panel import Panel
 
 DEFAULT_THICKNESS = 6
 WHITE = (255, 255, 255)
+
 BLACK = (0, 0, 0)
 GREY = (200, 200, 200)
+BLUE = (255, 0, 0)
+GREEN = (0,255,0)
+RED = (0,0,255)
+
 
 PANEL_MARGIN = 20
 PANEL_GAP = 20
 WHEEL_SIZE = 160
 PREVIEW_SIZE = 60  
 SLIDER_HEIGHT = 30
+SWATCH_COUNT = 5
+SWATCH_SIZE = 24
+SWATCH_GAP = 5
+PREVIEW_SWATCH_GAP = 10
 
 
 class UI:
@@ -44,18 +53,15 @@ class UI:
 
         self.actions_history = deque(maxlen=10)  # Historique des actions pour l'annulation
         self.restore_history = deque(maxlen=10)  # Historique des actions pour la restauration après annulation
+        self.color_history = deque([BLACK,GREY, RED, GREEN, BLUE],maxlen=5)     # Historique des couleurs
 
 
         self.add_button((10, 10), (110, 30), "Panel", lambda: self.open_panel())
-        self.add_button((140, 10), (80, 30), "Rouge", lambda: self.change_color((0, 0, 255)))
-        self.add_button((240, 10), (80, 30), "Vert", lambda: self.change_color((0, 255, 0)))
-        self.add_button((340, 10), (80, 30), "Bleu", lambda: self.change_color((255, 0, 0)))
-        self.add_button((440, 10), (80, 30), "Black", lambda: self.change_color((0, 0, 0)))
-        self.add_button((10, 40), (80, 30), "Brush", lambda: self.use_brush())
-        self.add_button((140, 40), (80, 30), "Fill", lambda: self.use_fill())
-        self.add_button((240, 40), (80, 30), "Gomme", lambda: self.use_eraser())
-        self.add_button((340, 40), (80, 30), "Undo", lambda: self.pop_last_action())
-        self.add_button((440, 40), (80, 30), "Restore", lambda: self.restore_state())
+        self.add_button((140, 10), (80, 30), "Brush", lambda: self.use_brush())
+        self.add_button((240, 10), (80, 30), "Fill", lambda: self.use_fill())
+        self.add_button((340, 10), (80, 30), "Gomme", lambda: self.use_eraser())
+        self.add_button((440, 10), (80, 30), "Undo", lambda: self.pop_last_action())
+        self.add_button((540, 10), (80, 30), "Restore", lambda: self.restore_state())
 
         
 
@@ -136,6 +142,11 @@ class UI:
                 self.change_color(color)
                 return True
 
+            history_color = self.panel.history_color_at(point)
+            if history_color is not None:
+                self.change_color(history_color)
+                return True
+
             slider = self.panel.slider_at(point)
             if slider is not None:
                 self.active_slider = slider
@@ -158,10 +169,21 @@ class UI:
 
         return False
 
+    def remember_color(self):
+        color = self.current_brush().color
+        if self.active_tool != "eraser" and color not in self.color_history:
+            self.color_history.appendleft(color)
+
+    def get_color_history(self):
+        return list(self.color_history)
+
     def register_state(self):
         """Enregistre l'état actuel du canvas pour permettre l'annulation."""
         self.actions_history.append(self.canvas.copy())
         self.restore_history.clear()  
+        self.remember_color()
+
+
 
     def restore_state(self):
         """Restaure l'état précédent du canvas après une annulation."""
@@ -202,27 +224,39 @@ class UI:
 
     def build_panel(self, frame_w, frame_h):
         """Calcule la disposition et crée le panneau centré dans l'image."""
-        panel_w = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + PREVIEW_SIZE
-        panel_h = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + SLIDER_HEIGHT + PANEL_GAP + SLIDER_HEIGHT 
+        swatches_w = SWATCH_COUNT * SWATCH_SIZE + (SWATCH_COUNT - 1) * SWATCH_GAP
+        column_h = PREVIEW_SIZE + PREVIEW_SWATCH_GAP + SWATCH_SIZE
+
+        panel_w = 2 * PANEL_MARGIN + WHEEL_SIZE + PANEL_GAP + swatches_w
+        panel_h = 2 * PANEL_MARGIN + WHEEL_SIZE + 2 * (PANEL_GAP + SLIDER_HEIGHT)
 
         # Origine du panneau : centré dans l'image
         px = (frame_w - panel_w) // 2
         py = (frame_h - panel_h) // 2
 
-        # Positions absolues des éléments
         wheel_pos = (px + PANEL_MARGIN, py + PANEL_MARGIN)
-        preview_pos = (px + PANEL_MARGIN + WHEEL_SIZE + PANEL_GAP, py + PANEL_MARGIN + (WHEEL_SIZE - PREVIEW_SIZE)//2)
+
+        # Colonne de droite (aperçu + historique), centrée verticalement sur la roue
+        column_x = wheel_pos[0] + WHEEL_SIZE + PANEL_GAP
+        column_y = wheel_pos[1] + (WHEEL_SIZE - column_h) // 2
+        preview_pos = (column_x + (swatches_w - PREVIEW_SIZE) // 2, column_y)
+        swatch_y = column_y + PREVIEW_SIZE + PREVIEW_SWATCH_GAP
+        swatch_rects = [(column_x + i * (SWATCH_SIZE + SWATCH_GAP), swatch_y, SWATCH_SIZE, SWATCH_SIZE)
+                        for i in range(SWATCH_COUNT)]
+
+        # Sliders sur toute la largeur intérieure
+        slider_w = panel_w - 2 * PANEL_MARGIN
         brightness_pos = (px + PANEL_MARGIN, wheel_pos[1] + WHEEL_SIZE + PANEL_GAP)
         thickness_pos = (px + PANEL_MARGIN, brightness_pos[1] + SLIDER_HEIGHT + PANEL_GAP)
 
-        SLIDER_WIDTH = panel_w- 2 * PANEL_MARGIN
-
         self.color_wheel = ColorWheel(wheel_pos, (WHEEL_SIZE, WHEEL_SIZE))
-        thickness_slider = Slider(thickness_pos, (SLIDER_WIDTH, SLIDER_HEIGHT), 1, 50,
-                                self.get_brush_thickness, self.set_brush_thickness,"thickness", step=1)
-        brightness_slider = Slider(brightness_pos, (SLIDER_WIDTH, SLIDER_HEIGHT), 0, 255,
-                                self.get_brightness, self.set_brightness,"brightness", step=1)
-        self.panel = Panel((px, py), (panel_w, panel_h), [thickness_slider, brightness_slider], self.color_wheel,preview_pos,PREVIEW_SIZE,self.current_color)
+        thickness_slider = Slider(thickness_pos, (slider_w, SLIDER_HEIGHT), 1, 50,
+                                self.get_brush_thickness, self.set_brush_thickness, "thickness", step=1)
+        brightness_slider = Slider(brightness_pos, (slider_w, SLIDER_HEIGHT), 0, 255,
+                                self.get_brightness, self.set_brightness, "brightness", step=1)
+        self.panel = Panel((px, py), (panel_w, panel_h), [thickness_slider, brightness_slider],
+                        self.color_wheel, preview_pos, PREVIEW_SIZE, self.current_color,
+                        swatch_rects, self.get_color_history)
 
     def show(self, camera_frame, cursor=None, drawing=False):
         cv2.imshow('Camera', camera_frame)

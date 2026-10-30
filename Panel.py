@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 class Panel :
-    def __init__(self, pos, size, sliders, color_wheel,preview_pos,preview_size,get_color):
+    def __init__(self, pos, size, sliders, color_wheel,preview_pos,preview_size,get_color,swatch_rects,get_history):
         self.pos = pos
         self.size = size
         self.sliders = sliders
@@ -10,6 +10,8 @@ class Panel :
         self.preview_pos = preview_pos
         self.preview_size = preview_size
         self.get_color= get_color
+        self.swatch_rects = swatch_rects
+        self.get_history = get_history
 
     def draw(self, view):
         x, y = self.pos
@@ -30,6 +32,8 @@ class Panel :
 
         cv2.rectangle(view, (px, py), (px + pw, py + ph), self.get_color(), -1)
         cv2.rectangle(view, (px, py), (px + pw, py + ph), (128, 128, 128), 2)
+
+        self.draw_history(view)
 
 
 
@@ -53,6 +57,21 @@ class Panel :
         for slider in self.sliders:
             if slider.contains(point):
                 return slider
+        return None
+
+    def draw_history(self, view):
+        history = self.get_history()
+        for i, (rx, ry, rw, rh) in enumerate(self.swatch_rects):
+            if i < len(history):
+                cv2.rectangle(view, (rx, ry), (rx + rw, ry + rh), history[i], -1)
+            cv2.rectangle(view, (rx, ry), (rx + rw, ry + rh), (128, 128, 128), 2)
+
+    def history_color_at(self, point):
+        x, y = point
+        history = self.get_history()
+        for i, (rx, ry, rw, rh) in enumerate(self.swatch_rects):
+            if i < len(history) and rx <= x <= rx + rw and ry <= y <= ry + rh:
+                return history[i]
         return None
 
     
