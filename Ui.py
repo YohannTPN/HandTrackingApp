@@ -59,7 +59,7 @@ class UI:
         self.add_button((10, 10), (110, 30), "Panel", lambda: self.open_panel())
         self.add_button((140, 10), (80, 30), "Brush", lambda: self.use_brush())
         self.add_button((240, 10), (80, 30), "Fill", lambda: self.use_fill())
-        self.add_button((340, 10), (80, 30), "Gomme", lambda: self.use_eraser())
+        self.add_button((340, 10), (80, 30), "Eraser", lambda: self.use_eraser())
         self.add_button((440, 10), (80, 30), "Undo", lambda: self.pop_last_action())
         self.add_button((540, 10), (80, 30), "Restore", lambda: self.restore_state())
 
@@ -297,9 +297,9 @@ class UI:
 
             
 
-        status = "Dessin" if drawing else "Pause (pince pouce + index pour dessiner)"
+        status = "Drawing" if drawing else "Pause (pinch thumb + index to draw)"
         cv2.putText(view, status, (260, view.shape[0] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (90, 90, 90), 1)
-        cv2.putText(view, "s: sauver | q: quitter", (10, view.shape[0] - 10),
+        cv2.putText(view, "s: save | q: quit", (10, view.shape[0] - 10),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (90, 90, 90), 1)
         return view
