@@ -1,0 +1,5 @@
+# HandTracking Paint - Python dependencies
+# MediaPipe also installs its own dependencies (matplotlib, ...) automatically.
+mediapipe>=0.10
+opencv-python
+numpy
