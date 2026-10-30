@@ -1,5 +1,6 @@
 class Slider :
-    def __init__(self, pos, size, min_val, max_val,getter, setter,step=1):
+    def __init__(self, pos, size, min_val, max_val,getter, setter,label="",step=1):
+        self.label = label
         self.pos = pos
         self.size = size
         self.min_val = min_val

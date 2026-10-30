@@ -16,8 +16,8 @@ GREY = (200, 200, 200)
 
 PANEL_MARGIN = 20
 PANEL_GAP = 20
-WHEEL_SIZE = 200
-SLIDER_WIDTH = 160    
+WHEEL_SIZE = 160
+PREVIEW_SIZE = 60  
 SLIDER_HEIGHT = 30
 
 
@@ -65,6 +65,9 @@ class UI:
     def change_color(self, color):
         self.active_tool = "brush"
         self.brush.color = color
+
+    def current_color(self):
+        return self.current_brush().color
 
     def open_panel(self):
         self.is_panel_open = True
@@ -199,8 +202,8 @@ class UI:
 
     def build_panel(self, frame_w, frame_h):
         """Calcule la disposition et crée le panneau centré dans l'image."""
-        panel_w = PANEL_MARGIN * 2 + WHEEL_SIZE
-        panel_h = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + SLIDER_HEIGHT + PANEL_GAP + SLIDER_HEIGHT
+        panel_w = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + PREVIEW_SIZE
+        panel_h = PANEL_MARGIN * 2 + WHEEL_SIZE + PANEL_GAP + SLIDER_HEIGHT + PANEL_GAP + SLIDER_HEIGHT 
 
         # Origine du panneau : centré dans l'image
         px = (frame_w - panel_w) // 2
@@ -208,15 +211,18 @@ class UI:
 
         # Positions absolues des éléments
         wheel_pos = (px + PANEL_MARGIN, py + PANEL_MARGIN)
+        preview_pos = (px + PANEL_MARGIN + WHEEL_SIZE + PANEL_GAP, py + PANEL_MARGIN + (WHEEL_SIZE - PREVIEW_SIZE)//2)
         brightness_pos = (px + PANEL_MARGIN, wheel_pos[1] + WHEEL_SIZE + PANEL_GAP)
         thickness_pos = (px + PANEL_MARGIN, brightness_pos[1] + SLIDER_HEIGHT + PANEL_GAP)
 
+        SLIDER_WIDTH = panel_w- 2 * PANEL_MARGIN
+
         self.color_wheel = ColorWheel(wheel_pos, (WHEEL_SIZE, WHEEL_SIZE))
         thickness_slider = Slider(thickness_pos, (SLIDER_WIDTH, SLIDER_HEIGHT), 1, 50,
-                                self.get_brush_thickness, self.set_brush_thickness, step=1)
+                                self.get_brush_thickness, self.set_brush_thickness,"thickness", step=1)
         brightness_slider = Slider(brightness_pos, (SLIDER_WIDTH, SLIDER_HEIGHT), 0, 255,
-                                self.get_brightness, self.set_brightness, step=1)
-        self.panel = Panel((px, py), (panel_w, panel_h), [thickness_slider, brightness_slider], self.color_wheel)
+                                self.get_brightness, self.set_brightness,"brightness", step=1)
+        self.panel = Panel((px, py), (panel_w, panel_h), [thickness_slider, brightness_slider], self.color_wheel,preview_pos,PREVIEW_SIZE,self.current_color)
 
     def show(self, camera_frame, cursor=None, drawing=False):
         cv2.imshow('Camera', camera_frame)

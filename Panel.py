@@ -2,11 +2,14 @@ import cv2
 import numpy as np
 
 class Panel :
-    def __init__(self, pos, size, sliders, color_wheel):
+    def __init__(self, pos, size, sliders, color_wheel,preview_pos,preview_size,get_color):
         self.pos = pos
         self.size = size
         self.sliders = sliders
         self.color_wheel = color_wheel
+        self.preview_pos = preview_pos
+        self.preview_size = preview_size
+        self.get_color= get_color
 
     def draw(self, view):
         x, y = self.pos
@@ -21,6 +24,15 @@ class Panel :
         color_wheel_mask = self.color_wheel.mask
         color_wheel[color_wheel_mask == 0] = (230, 230, 230)
 
+        px,py = self.preview_pos
+        pw = self.preview_size
+        ph = self.preview_size
+
+        cv2.rectangle(view, (px, py), (px + pw, py + ph), self.get_color(), -1)
+        cv2.rectangle(view, (px, py), (px + pw, py + ph), (128, 128, 128), 2)
+
+
+
         for slider in self.sliders:
             sx, sy = slider.pos
             sw, sh = slider.size
@@ -28,7 +40,7 @@ class Panel :
             cv2.rectangle(view, (sx, sy), (sx + sw, sy + sh), (100, 100, 100), 2)
             hx, hy = slider.selected_value()
             cv2.circle(view, (hx, hy), 8, (50, 50, 50), -1)
-            cv2.putText(view, f"{slider.get_brush_value()}", (sx + sw + 10, sy + sh // 2 + 5),
+            cv2.putText(view, f"{slider.label}:{slider.get_brush_value()}", (sx , sy-6),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
             
     def contains(self, point):
